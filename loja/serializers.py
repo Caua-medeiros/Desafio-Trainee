@@ -1,14 +1,14 @@
 from rest_framework import serializers
-from loja.models import Cadastro_Clientes, Cadastro_Logistas, Login, Cadastro_Produtos
+from loja.models import Clientes, Logistas, Login, Produtos, Estoque
 
-class CadastroClientesSerializer(serializers.ModelSerializer):
+class ClientesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Cadastro_Clientes
+        model = Clientes
         fields = '__all__'
 
-class CadastroLogistasSerializer(serializers.ModelSerializer):
+class LogistasSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Cadastro_Logistas
+        model = Logistas
         fields = '__all__'
 
 class LoginSerializer(serializers.ModelSerializer):
@@ -16,7 +16,12 @@ class LoginSerializer(serializers.ModelSerializer):
         model = Login
         fields = '__all__'
 
-class CadastroProdutosSerializer(serializers.ModelSerializer):
+class ProdutosSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Cadastro_Produtos
+        model = Produtos
         fields = '__all__'
+
+class EstoqueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Estoque
+        exclude = []

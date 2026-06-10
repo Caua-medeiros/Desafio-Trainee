@@ -1,15 +1,16 @@
 from django.contrib import admin
 from django.urls import path,include
-from loja.views import CadastroClientesViewSet, CadastroLogistasViewSet, LoginViewSet, CadastroProdutosViewSet
+from loja.views import ClientesViewSet, LogistasViewSet, LoginViewSet, ProdutosViewSet, EstoqueViewSet
 from rest_framework import routers
 
 router = routers.DefaultRouter()
-router.register('clientes', CadastroClientesViewSet, basename='clientes')
-router.register('logistas', CadastroLogistasViewSet, basename='logistas')
+router.register('clientes', ClientesViewSet, basename='clientes')
+router.register('logistas', LogistasViewSet, basename='logistas')
 router.register('login', LoginViewSet, basename='login')
-router.register('produtos', CadastroProdutosViewSet, basename='produtos')
+router.register('produtos', ProdutosViewSet, basename='produtos')
+router.register('estoque', EstoqueViewSet, basename='estoque')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include(router.urls))
+    path('', include(router.urls)), 
 ]

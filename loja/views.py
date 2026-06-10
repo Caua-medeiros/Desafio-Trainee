@@ -1,20 +1,26 @@
-from loja.models import Cadastro_Clientes, Cadastro_Logistas, Login, Cadastro_Produtos
-from loja.serializers import CadastroClientesSerializer, CadastroLogistasSerializer, LoginSerializer, CadastroProdutosSerializer
-from rest_framework import viewsets
+from loja.models import Clientes, Logistas, Login, Produtos, Estoque
+from loja.serializers import ClientesSerializer, LogistasSerializer, LoginSerializer, ProdutosSerializer, EstoqueSerializer
+from rest_framework import viewsets, generics
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.permissions import IsAuthenticated, IsAdminUser, IsAuthenticatedOrReadOnly
 
-class CadastroClientesViewSet(viewsets.ModelViewSet):
-    queryset = Cadastro_Clientes.objects.all()
-    serializer_class = CadastroClientesSerializer
+class ClientesViewSet(viewsets.ModelViewSet):
+    queryset = Clientes.objects.all()
+    serializer_class = ClientesSerializer
 
-class CadastroLogistasViewSet(viewsets.ModelViewSet):
-    queryset = Cadastro_Logistas.objects.all()
-    serializer_class = CadastroLogistasSerializer
+class LogistasViewSet(viewsets.ModelViewSet):
+    queryset = Logistas.objects.all()
+    serializer_class = LogistasSerializer
 
 class LoginViewSet(viewsets.ModelViewSet):
     queryset = Login.objects.all()
     serializer_class = LoginSerializer
 
-class CadastroProdutosViewSet(viewsets.ModelViewSet):   
-    queryset = Cadastro_Produtos.objects.all()
-    serializer_class = CadastroProdutosSerializer   
+class ProdutosViewSet(viewsets.ModelViewSet):
+    queryset = Produtos.objects.all()
+    serializer_class = ProdutosSerializer   
 
+
+class EstoqueViewSet(viewsets.ModelViewSet):
+    queryset = Estoque.objects.all()
+    serializer_class = EstoqueSerializer

@@ -1,21 +1,21 @@
 from django.contrib import admin
-from .models import Cadastro_Clientes, Cadastro_Logistas, Login, Cadastro_Produtos
+from .models import Clientes, Logistas, Login, Produtos, Estoque
 
-class CadastroClientesAdmin(admin.ModelAdmin):
+class ClientesAdmin(admin.ModelAdmin):
     list_display = ('id', 'nome_completo', 'data_nascimento', 'telefone', 'cpf', 'cep', 'email')
     list_display_links = ('id', 'nome_completo', 'email')
     list_per_page = 20
     search_fields = ('nome_completo', 'email')
 
-admin.site.register(Cadastro_Clientes, CadastroClientesAdmin)
+admin.site.register(Clientes, ClientesAdmin)
 
-class CadastroLogistasAdmin(admin.ModelAdmin):
+class LogistasAdmin(admin.ModelAdmin):
     list_display = ('id', 'nome_completo', 'data_nascimento', 'telefone', 'cpf', 'cep', 'email')
     list_display_links = ('id', 'nome_completo', 'email')
     list_per_page = 20
     search_fields = ('nome_completo', 'email')
 
-admin.site.register(Cadastro_Logistas, CadastroLogistasAdmin)
+admin.site.register(Logistas, LogistasAdmin)
 
 class LoginAdmin(admin.ModelAdmin):
     list_display = ('id', 'email', 'senha')
@@ -25,11 +25,18 @@ class LoginAdmin(admin.ModelAdmin):
 
 admin.site.register(Login, LoginAdmin)
 
-class CadastroProdutosAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_produto', 'descricao', 'preco', 'tamanho', 'estoque')
+class ProdutosAdmin(admin.ModelAdmin):
+    list_display = ('id', 'nome_produto', 'descricao', 'preco')
     list_display_links = ('id', 'nome_produto')
     list_per_page = 20
     search_fields = ('nome_produto',)
 
-admin.site.register(Cadastro_Produtos, CadastroProdutosAdmin)
+admin.site.register(Produtos, ProdutosAdmin)
 
+class EstoqueAdmin(admin.ModelAdmin):
+    list_display = ('id', 'produtos', 'quantidade', 'tamanho')
+    list_display_links = ('id', 'produtos')
+    list_per_page = 20
+    search_fields = ('produtos__nome_produto',)
+
+admin.site.register(Estoque, EstoqueAdmin)
