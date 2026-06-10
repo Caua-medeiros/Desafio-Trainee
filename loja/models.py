@@ -32,6 +32,7 @@ class Login(models.Model):
     
 
 class Produtos(models.Model):
+    lojista = models.ForeignKey(Logistas, on_delete=models.CASCADE, null=True, blank=True)
     nome_produto = models.CharField(blank=False, max_length=100,null=False)
     descricao = models.TextField(blank=False,null=False)
     preco = models.DecimalField(max_digits=10, decimal_places=2,null=False, blank=False)
