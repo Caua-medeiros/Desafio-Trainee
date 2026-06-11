@@ -24,4 +24,4 @@ class ProdutosSerializer(serializers.ModelSerializer):
 class EstoqueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Estoque
-        exclude = []
+        fields = '__all__'
