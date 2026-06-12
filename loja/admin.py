@@ -37,6 +37,6 @@ class EstoqueAdmin(admin.ModelAdmin):
     list_display = ('id', 'produtos', 'quantidade', 'tamanho')
     list_display_links = ('id', 'produtos')
     list_per_page = 20
-    search_fields = ('produtos__nome_produto',)
+    search_fields = ('produtos__nome_produto', 'tamanho')
 
 admin.site.register(Estoque, EstoqueAdmin)
