@@ -1,49 +1,72 @@
 import re
+from validate_docbr import CPF
 from rest_framework import serializers
 from loja.models import Clientes, Logistas, Login, Produtos, Estoque
+
+cpf_validator = CPF()
 
 class ClientesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Clientes
         fields = '__all__'
 
-    def validate_cpf(self, value):
-        if not value.isdigit() or len(value) != 11:
-            raise serializers.ValidationError('O CPF deve conter exatamente 11 dígitos numéricos.')
-        return value
+    def validate(self, dados):
+        errors = {}
+        cpf = dados.get('cpf')
+        telefone = dados.get('telefone')
+        nome = dados.get('nome_completo')
 
-    def validate_telefone(self, value):
-        digits = ''.join(filter(str.isdigit, value))
-        if len(digits) < 10 or len(digits) > 13:
-            raise serializers.ValidationError('O telefone deve ter entre 10 e 13 dígitos numéricos.')
-        return value
+        if cpf is not None:
+            
+            if not re.match(r'^\d{3}\.\d{3}\.\d{3}-\d{2}$', cpf):
+                errors['cpf'] = 'O CPF deve seguir o modelo: 000.000.000-00'
+            
+            elif not cpf_validator.validate(cpf):
+                errors['cpf'] = 'Este CPF é inválido. Digite um CPF real.'
 
-    def validate_nome_completo(self, value):
-        if not re.match(r'^[A-Za-zÀ-ÿ\s]+$', value):
-            raise serializers.ValidationError('O nome deve conter apenas letras e espaços.')
-        return value
-    
+        if telefone is not None:
+            if not re.match(r'^\(\d{2}\)\s\d{4,5}-\d{4}$', telefone):
+                errors['telefone'] = 'O telefone deve seguir o modelo: (84) 99999-1111'
+
+        if nome is not None:
+            if not re.match(r'^\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)*\s*$', nome):
+                errors['nome_completo'] = 'O nome deve conter apenas letras e espaços.'
+
+        if errors:
+            raise serializers.ValidationError(errors)
+        return dados
+
 
 class LogistasSerializer(serializers.ModelSerializer):
     class Meta:
         model = Logistas
         fields = '__all__'
 
-    def validate_cpf(self, value):
-        if not value.isdigit() or len(value) != 11:
-            raise serializers.ValidationError('O CPF deve conter exatamente 11 dígitos numéricos.')
-        return value
+    def validate(self, dados):
+        errors = {}
+        cpf = dados.get('cpf')
+        telefone = dados.get('telefone')
+        nome = dados.get('nome_completo')
 
-    def validate_telefone(self, value):
-        digits = ''.join(filter(str.isdigit, value))
-        if len(digits) < 10 or len(digits) > 13:
-            raise serializers.ValidationError('O telefone deve ter entre 10 e 13 dígitos numéricos.')
-        return value
+        if cpf is not None:
+           
+            if not re.match(r'^\d{3}\.\d{3}\.\d{3}-\d{2}$', cpf):
+                errors['cpf'] = 'O CPF deve seguir o modelo: 000.000.000-00'
 
-    def validate_nome_completo(self, value):
-        if not re.match(r'^[A-Za-zÀ-ÿ\s]+$', value):
-            raise serializers.ValidationError('O nome deve conter apenas letras e espaços.')
-        return value
+            elif not cpf_validator.validate(cpf):
+                errors['cpf'] = 'Este CPF é inválido. Digite um CPF real.'
+
+        if telefone is not None:
+            if not re.match(r'^\(\d{2}\)\s\d{4,5}-\d{4}$', telefone):
+                errors['telefone'] = 'O telefone deve seguir o modelo: (84) 99999-1111'
+
+        if nome is not None:
+            if not re.match(r'^\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)*\s*$', nome):
+                errors['nome_completo'] = 'O nome deve conter apenas letras e espaços.'
+
+        if errors:
+            raise serializers.ValidationError(errors)
+        return dados
 
 
 class LoginSerializer(serializers.ModelSerializer):
