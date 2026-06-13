@@ -1,42 +1,28 @@
 from django.contrib import admin
-from .models import Clientes, Logistas, Login, Produtos, Estoque
+from .models import Clientes, Logistas, Produtos, Estoque, PasswordResetToken
 
+@admin.register(Clientes)
 class ClientesAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_completo', 'data_nascimento', 'telefone', 'cpf', 'cep', 'email')
-    list_display_links = ('id', 'nome_completo', 'email')
-    list_per_page = 20
-    search_fields = ('nome_completo', 'email')
+    list_display = ('id', 'nome_completo', 'telefone', 'cpf')
+    search_fields = ('nome_completo', 'cpf')
 
-admin.site.register(Clientes, ClientesAdmin)
-
+@admin.register(Logistas)
 class LogistasAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_completo', 'data_nascimento', 'telefone', 'cpf', 'cep', 'email')
-    list_display_links = ('id', 'nome_completo', 'email')
-    list_per_page = 20
-    search_fields = ('nome_completo', 'email')
+    list_display = ('id', 'nome_completo', 'telefone', 'cpf')
+    search_fields = ('nome_completo', 'cpf')
 
-admin.site.register(Logistas, LogistasAdmin)
-
-class LoginAdmin(admin.ModelAdmin):
-    list_display = ('id', 'email', 'senha')
-    list_display_links = ('id', 'email')
-    list_per_page = 20
-    search_fields = ('email',)
-
-admin.site.register(Login, LoginAdmin)
-
+@admin.register(Produtos)
 class ProdutosAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_produto', 'descricao', 'preco')
-    list_display_links = ('id', 'nome_produto')
-    list_per_page = 20
+    list_display = ('id', 'nome_produto', 'preco', 'categoria', 'ativo')
+    list_filter = ('categoria', 'ativo')
     search_fields = ('nome_produto',)
 
-admin.site.register(Produtos, ProdutosAdmin)
-
+@admin.register(Estoque)
 class EstoqueAdmin(admin.ModelAdmin):
-    list_display = ('id', 'produtos', 'quantidade', 'tamanho')
-    list_display_links = ('id', 'produtos')
-    list_per_page = 20
-    search_fields = ('produtos__nome_produto', 'tamanho')
+    list_display = ('id', 'produtos', 'tamanho', 'cor', 'quantidade')
+    list_filter = ('tamanho', 'cor')
 
-admin.site.register(Estoque, EstoqueAdmin)
+@admin.register(PasswordResetToken)
+class PasswordResetTokenAdmin(admin.ModelAdmin):
+    list_display = ('email', 'token', 'created_at', 'used')
+    list_filter = ('used',)
