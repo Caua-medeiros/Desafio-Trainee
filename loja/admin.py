@@ -1,28 +1,90 @@
 from django.contrib import admin
-from .models import Clientes, Logistas, Produtos, Estoque, PasswordResetToken
+from loja.models import (
+    Cliente, Lojista, Produto, VariacaoEstoque, TokenRedefinicaoSenha, 
+    MensagemContato, CarrinhoCompra, ItemCarrinho, Pedido, ItemPedido, MetodoPagamento
+)
 
-@admin.register(Clientes)
-class ClientesAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_completo', 'telefone', 'cpf')
-    search_fields = ('nome_completo', 'cpf')
+# Configuracao inline para exibir as variacoes diretamente na pagina do produto
+class VariacaoEstoqueInline(admin.TabularInline):
+    model = VariacaoEstoque
+    extra = 1
+    verbose_name = "Variação de Estoque"
+    verbose_name_plural = "Variações de Estoque"
 
-@admin.register(Logistas)
-class LogistasAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_completo', 'telefone', 'cpf')
-    search_fields = ('nome_completo', 'cpf')
+# Configuracao inline para exibir os itens do carrinho
+class ItemCarrinhoInline(admin.TabularInline):
+    model = ItemCarrinho
+    extra = 0
+    verbose_name = "Item do Carrinho"
+    verbose_name_plural = "Itens do Carrinho"
 
-@admin.register(Produtos)
-class ProdutosAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome_produto', 'preco', 'categoria', 'ativo')
-    list_filter = ('categoria', 'ativo')
-    search_fields = ('nome_produto',)
+# Configuracao inline para exibir os itens faturados no pedido
+class ItemPedidoInline(admin.TabularInline):
+    model = ItemPedido
+    extra = 0
+    readonly_fields = ['variacao', 'quantidade', 'preco_unitario']
+    verbose_name = "Item do Pedido"
+    verbose_name_plural = "Itens do Pedido"
 
-@admin.register(Estoque)
-class EstoqueAdmin(admin.ModelAdmin):
-    list_display = ('id', 'produtos', 'tamanho', 'cor', 'quantidade')
+@admin.register(Cliente)
+class ClienteAdmin(admin.ModelAdmin):
+    list_display = ('nome_completo', 'cpf', 'telefone', 'cep', 'usuario')
+    search_fields = ('nome_completo', 'cpf', 'usuario__email', 'telefone')
+    list_per_page = 20
+
+@admin.register(Lojista)
+class LojistaAdmin(admin.ModelAdmin):
+    list_display = ('nome_completo', 'cpf', 'telefone', 'cep', 'usuario')
+    search_fields = ('nome_completo', 'cpf', 'usuario__email', 'telefone')
+    list_per_page = 20
+
+@admin.register(Produto)
+class ProdutoAdmin(admin.ModelAdmin):
+    list_display = ('nome_produto', 'lojista', 'preco', 'categoria', 'ativo')
+    list_filter = ('categoria', 'ativo', 'lojista')
+    search_fields = ('nome_produto', 'descricao', 'lojista__nome_completo')
+    inlines = [VariacaoEstoqueInline]
+    list_editable = ('preco', 'ativo')
+    list_per_page = 20
+
+@admin.register(VariacaoEstoque)
+class VariacaoEstoqueAdmin(admin.ModelAdmin):
+    list_display = ('id', 'produto', 'tamanho', 'cor', 'quantidade')
     list_filter = ('tamanho', 'cor')
+    search_fields = ('produto__nome_produto', 'cor')
+    list_per_page = 25
 
-@admin.register(PasswordResetToken)
-class PasswordResetTokenAdmin(admin.ModelAdmin):
-    list_display = ('email', 'token', 'created_at', 'used')
-    list_filter = ('used',)
+@admin.register(CarrinhoCompra)
+class CarrinhoCompraAdmin(admin.ModelAdmin):
+    list_display = ('id', 'cliente', 'criado_em')
+    search_fields = ('cliente__nome_completo', 'cliente__usuario__email')
+    inlines = [ItemCarrinhoInline]
+
+@admin.register(Pedido)
+class PedidoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'cliente', 'lojista', 'status', 'forma_pagamento', 'criado_em')
+    list_filter = ('status', 'forma_pagamento', 'criado_em')
+    search_fields = ('id', 'cliente__nome_completo', 'lojista__nome_completo', 'destinatario')
+    readonly_fields = ('criado_em', 'atualizado_em')
+    inlines = [ItemPedidoInline]
+    list_editable = ('status',)
+    list_per_page = 20
+
+@admin.register(MetodoPagamento)
+class MetodoPagamentoAdmin(admin.ModelAdmin):
+    list_display = ('tipo', 'identificador_metodo', 'cliente', 'salvo_em')
+    list_filter = ('tipo', 'salvo_em')
+    search_fields = ('cliente__nome_completo', 'identificador_metodo')
+
+@admin.register(TokenRedefinicaoSenha)
+class TokenRedefinicaoSenhaAdmin(admin.ModelAdmin):
+    list_display = ('email', 'token', 'criado_em', 'utilizado')
+    list_filter = ('utilizado', 'criado_em')
+    search_fields = ('email', 'token')
+
+@admin.register(MensagemContato)
+class MensagemContatoAdmin(admin.ModelAdmin):
+    list_display = ('assunto', 'nome', 'email', 'criado_em')
+    list_filter = ('criado_em',)
+    search_fields = ('nome', 'email', 'assunto', 'mensagem')
+    readonly_fields = ('criado_em',)

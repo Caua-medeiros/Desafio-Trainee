@@ -3,69 +3,52 @@ from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from loja.views import (
-    AuthRegisterView,
-    ForgotPasswordView,
-    ResetPasswordView,
-    ClientesViewSet,
-    LogistasViewSet,
-    ProdutosViewSet,
-    EstoqueViewSet,
-    VariaçãoDetalheView
-)
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
 
-router = DefaultRouter()
-router.register(r'clientes', ClientesViewSet, basename='clientes')
-router.register(r'logistas', LogistasViewSet, basename='logistas')
-router.register(r'products', ProdutosViewSet, basename='products')
-router.register(r'variations', EstoqueViewSet, basename='variations')
+from loja.views import (
+    RegistroUsuarioView, SolicitacaoRecuperacaoSenhaView, ConfirmacaoRecuperacaoSenhaView,
+    ProdutoViewSet, VariacaoEstoqueViewSet, DetalheVariacaoView, MensagemContatoView, 
+    CarrinhoCompraView, ItemCarrinhoViewSet, CheckoutView, PedidoViewSet, MetodoPagamentoViewSet
+)
+
+# Roteador mapeado exatamente conforme as especificações exigidas de endpoints
+router = DefaultRouter(trailing_slash=False)
+router.register(r'products', ProdutoViewSet, basename='products')
+router.register(r'cart/items', ItemCarrinhoViewSet, basename='cart-items')
+router.register(r'orders', PedidoViewSet, basename='orders')
+router.register(r'payments', MetodoPagamentoViewSet, basename='payments')
 
 schema_view = get_schema_view(
-    openapi.Info(
-        title="API Desafio Trainee EJECT",
-        default_version='v1',
-        description="Documentação da API da Loja",
-    ),
+    openapi.Info(title="API New Style E-Commerce - EJECT", default_version='v1'),
     public=True,
     permission_classes=(permissions.AllowAny,),
 )
 
-schema_view.security_definitions = {
-    'Bearer': {
-        'type': 'apiKey',
-        'name': 'Authorization',
-        'in': 'header',
-        'description': "Insira o token JWT desta forma: Bearer <seu_token>"
-    }
-}
-
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
-    # Swagger
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     
-    # Endpoints de Autenticação Manual (UC01 / UC02)
-    path('api/auth/register/', AuthRegisterView.as_view(), name='auth_register'),
-    path('api/auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot_password'),
-    path('api/auth/reset-password/', ResetPasswordView.as_view(), name='reset_password'),
+    # UC01 & UC02 - Autenticação e Recuperação de Senha (Exigência exata do edital)
+    path('auth/register', RegistroUsuarioView.as_view(), name='auth_register'),
+    path('auth/login', TokenObtainPairView.as_view(), name='auth_login'),
+    path('auth/token/refresh', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/forgot-password', SolicitacaoRecuperacaoSenhaView.as_view(), name='forgot_password'),
+    path('auth/reset-password', ConfirmacaoRecuperacaoSenhaView.as_view(), name='reset_password'),
     
-    # Endpoints do SimpleJWT (Login)
-    path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    # UC04 - Variações de Produto
+    path('products/<int:id_produto>/variacoes', VariacaoEstoqueViewSet.as_view({'post': 'create', 'get': 'list'}), name='product_variations'),
+    path('variations/<int:pk>', DetalheVariacaoView.as_view(), name='variation_detail'),
     
-    # UC04: Rota Aninhada Obrigatória para Adicionar/Listar Variações diretamente por Produto
-    path('api/products/<int:product_id>/variations/', EstoqueViewSet.as_view({'post': 'create', 'get': 'list'}), name='product_variations_list_create'),
+    # UC06 - Envio de Email de Contato
+    path('contact/email', MensagemContatoView.as_view(), name='contact_email'),
     
-    # UC04: Rotas Manuais para Edição/Exclusão de Variações de Estoque específicas
-    path('api/variations/<int:pk>/', VariaçãoDetalheView.as_view(), name='variation_detail'),
+    # UC07 - Detalhe do Carrinho Geral
+    path('cart', CarrinhoCompraView.as_view(), name='cart_detail'),
     
-    # ViewSets Gerais
-    path('api/', include(router.urls)),
+    # UC08 - Realização de Pedido (Checkout)
+    path('orders/checkout', CheckoutView.as_view(), name='orders_checkout'),
+    
+    # Inclusão dos endpoints via Router do DRF (/products, /cart/items, /orders, /payments)
+    path('', include(router.urls)),
 ]

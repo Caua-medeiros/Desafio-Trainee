@@ -1,1 +1,22 @@
+# Ambientes Virtuais
+venv/
+ENV/
+env/
+.venv/
+
+# Arquivos temporários e compilados do Python
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Banco de dados local de desenvolvimento
 db.sqlite3
+db.sqlite3-journal
+
+# Arquivos de configuração de IDEs
+.vscode/
+.idea/
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db

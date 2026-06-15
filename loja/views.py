@@ -1,152 +1,102 @@
 import random
 from django.shortcuts import get_object_or_404
-from django.db import IntegrityError
+from django.db import transaction
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
-from rest_framework import viewsets, status, filters
+from django.core.mail import send_mail
+from rest_framework import viewsets, status, filters, mixins
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from loja.models import Clientes, Logistas, Produtos, Estoque, PasswordResetToken
-from loja.serializers import (
-    RegisterSerializer,
-    ForgotPasswordSerializer,
-    ResetPasswordSerializer,
-    ClientesSerializer,
-    LogistasSerializer,
-    ProdutosSerializer,
-    EstoqueSerializer,
-    ProdutosPagination
+from loja.models import (
+    Cliente, Lojista, Produto, VariacaoEstoque, TokenRedefinicaoSenha, 
+    MensagemContato, CarrinhoCompra, ItemCarrinho, Pedido, ItemPedido, MetodoPagamento
 )
 
-# ==================== AUTENTICAÇÃO / REGISTRO ====================
+# IMPORT CORRIGIDO: Inclui os serializers de Auth/Recuperação de senha
+from loja.serializers import (
+    RegistroUsuarioSerializer, SolicitacaoRecuperacaoSenhaSerializer, ConfirmacaoRecuperacaoSenhaSerializer,
+    ProdutoSerializer, VariacaoEstoqueSerializer, PaginacaoProdutosCustomizada, 
+    MensagemContatoSerializer, ItemCarrinhoSerializer, CarrinhoCompraSerializer,
+    PedidoSerializer, CheckoutSerializer, MetodoPagamentoSerializer
+)
 
-class AuthRegisterView(APIView):
-    serializer_class = RegisterSerializer
+class RegistroUsuarioView(APIView):
+    serializer_class = RegistroUsuarioSerializer
+    permission_classes = []
 
-    @swagger_auto_schema(
-        request_body=RegisterSerializer,
-        responses={201: openapi.Response('Usuário registrado com sucesso!')}
-    )
+    @swagger_auto_schema(request_body=RegistroUsuarioSerializer, responses={201: openapi.Response('Sucesso')})
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            perfil = serializer.save()
-            if isinstance(perfil, Clientes):
-                serializer_perfil = ClientesSerializer(perfil)
-            else:
-                serializer_perfil = LogistasSerializer(perfil)
-            return Response(serializer_perfil.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response({"detail": "Usuário registrado com sucesso!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class SolicitacaoRecuperacaoSenhaView(APIView):
+    serializer_class = SolicitacaoRecuperacaoSenhaSerializer
+    permission_classes = []
 
-class ForgotPasswordView(APIView):
-    serializer_class = ForgotPasswordSerializer
-
-    @swagger_auto_schema(
-        request_body=ForgotPasswordSerializer,
-        responses={200: openapi.Response('E-mail de recuperação processado.')}
-    )
+    @swagger_auto_schema(request_body=SolicitacaoRecuperacaoSenhaSerializer, responses={200: openapi.Response('Processado')})
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
-            user_exists = User.objects.filter(email=email).exists()
-            
-            if user_exists:
-                codigo = f"{random.randint(100000, 999999)}"
-                PasswordResetToken.objects.create(email=email, token=codigo)
-                print(f"\n[EMAIL] Código de recuperação para {email}: {codigo}\n")
-                
-            return Response({"detail": "Se o e-mail existir na base, um link de recuperação foi enviado."}, status=status.HTTP_200_OK)
+            email_alvo = serializer.validated_data['email']
+            if User.objects.filter(email=email_alvo).exists():
+                codigo_verificacao = f"{random.randint(100000, 999999)}"
+                TokenRedefinicaoSenha.objects.create(email=email_alvo, token=codigo_verificacao)
+                print(f"\n[EMAIL CONSOLE] Token enviado para {email_alvo}: {codigo_verificacao}\n")
+            # UC02: Mantém blindagem de segurança para não vazar a existência do usuário
+            return Response({"detail": "Se o e-mail informado constar em nossa base, um link de recuperação foi enviado."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class ConfirmacaoRecuperacaoSenhaView(APIView):
+    serializer_class = ConfirmacaoRecuperacaoSenhaSerializer
+    permission_classes = []
 
-class ResetPasswordView(APIView):
-    serializer_class = ResetPasswordSerializer
-
-    @swagger_auto_schema(
-        request_body=ResetPasswordSerializer,
-        responses={200: openapi.Response('Senha atualizada com sucesso!')}
-    )
+    @swagger_auto_schema(request_body=ConfirmacaoRecuperacaoSenhaSerializer, responses={200: openapi.Response('Sucesso')})
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            email_alvo = serializer.validated_data['email']
             token_informado = serializer.validated_data['token']
             nova_senha = serializer.validated_data['nova_senha']
             
-            reset_token = PasswordResetToken.objects.filter(email=email, token=token_informado).last()
-            if not reset_token or not reset_token.is_valid():
-                return Response({"detail": "Código inválido, expirado ou já utilizado."}, status=status.HTTP_400_BAD_REQUEST)
+            registro_token = TokenRedefinicaoSenha.objects.filter(email=email_alvo, token=token_informado).last()
+            entidade_usuario = User.objects.filter(email=email_alvo).first()
             
-            user = User.objects.filter(email=email).first()
-            if user:
-                user.password = make_password(nova_senha)
-                user.save()
-                reset_token.used = True
-                reset_token.save()
-                return Response({"detail": "Senha atualizada com sucesso!"}, status=status.HTTP_200_OK)
-                
-            return Response({"detail": "Usuário não encontrado."}, status=status.HTTP_400_BAD_REQUEST)
+            if not registro_token or not registro_token.esta_valido() or not entidade_usuario:
+                return Response({"detail": "O código informado é inválido, expirou ou já foi utilizado."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            entidade_usuario.password = make_password(nova_senha)
+            entidade_usuario.save()
+            registro_token.utilizado = True
+            registro_token.save()
+            return Response({"detail": "Senha redefinida com sucesso!"}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-# ==================== PERFIS DE USUÁRIOS ====================
-
-class ClientesViewSet(viewsets.ModelViewSet):
-    serializer_class = ClientesSerializer
+class ProdutoViewSet(viewsets.ModelViewSet):
+    serializer_class = ProdutoSerializer
     throttle_classes = [AnonRateThrottle, UserRateThrottle]
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    ordering_fields = ['id', 'nome_completo']
-    search_fields = ['nome_completo', 'user__email']
-
-    def get_queryset(self):
-        if not self.request.user or self.request.user.is_anonymous:
-            return Clientes.objects.none()
-        return Clientes.objects.filter(user=self.request.user).order_by('id')
-
-
-class LogistasViewSet(viewsets.ModelViewSet):
-    serializer_class = LogistasSerializer
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    ordering_fields = ['id', 'nome_completo']
-    search_fields = ['nome_completo', 'user__email']
-
-    def get_queryset(self):
-        if not self.request.user or self.request.user.is_anonymous:
-            return Logistas.objects.none()
-        return Logistas.objects.filter(user=self.request.user).order_by('id')
-
-
-# ==================== PRODUTOS ====================
-
-class ProdutosViewSet(viewsets.ModelViewSet):
-    serializer_class = ProdutosSerializer
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
-    pagination_class = ProdutosPagination
+    pagination_class = PaginacaoProdutosCustomizada
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     ordering_fields = ['id', 'nome_produto', 'preco']
     search_fields = ['nome_produto', 'descricao']
-    filterset_fields = ['categoria', 'ativo']
+    filterset_fields = ['categoria']
 
     def get_queryset(self):
-        user = self.request.user
-        # Se for um Lojista Autenticado, vê os seus próprios produtos (Ativos e Inativos)
-        if user.is_authenticated and Logistas.objects.filter(user=user).exists():
-            lojista = Logistas.objects.filter(user=user).first()
-            return Produtos.objects.filter(lojista=lojista).order_by('id')
-        # UC05: Clientes e anônimos apenas podem visualizar produtos ATIVOS
-        return Produtos.objects.filter(ativo=True).order_by('id')
+        usuario_atual = self.request.user
+        if usuario_atual.is_authenticated and Lojista.objects.filter(usuario=usuario_atual).exists():
+            perfil_lojista = Lojista.objects.filter(usuario=usuario_atual).first()
+            return Produto.objects.filter(lojista=perfil_lojista).order_by('id')
+        # UC05: Clientes e anônimos veem apenas produtos ativos
+        return Produto.objects.filter(ativo=True).order_by('id')
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -154,86 +104,217 @@ class ProdutosViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        lojista = Logistas.objects.filter(user=self.request.user).first()
-        if not lojista:
-            raise PermissionDenied("Apenas lojistas podem criar produtos.")
-        serializer.save(lojista=lojista)
+        perfil_lojista = Lojista.objects.filter(usuario=self.request.user).first()
+        if not perfil_lojista:
+            raise PermissionDenied("Apenas contas do tipo lojista podem catalogar produtos.")
+        serializer.save(lojista=perfil_lojista)
 
     def perform_update(self, serializer):
-        instance = self.get_object()
-        if instance.lojista and instance.lojista.user != self.request.user:
-            raise PermissionDenied("Você não tem permissão para editar este produto.")
+        registro = self.get_object()
+        if registro.lojista and registro.lojista.usuario != self.request.user:
+            raise PermissionDenied("Este produto não pertence ao seu estabelecimento.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        if instance.lojista and instance.lojista.user != self.request.user:
-            raise PermissionDenied("Você não tem permissão para deletar este produto.")
+        if instance.lojista and instance.lojista.usuario != self.request.user:
+            raise PermissionDenied("Este produto não pertence ao seu estabelecimento.")
         instance.delete()
 
-
-# ==================== ESTOQUE / VARIAÇÕES ====================
-
-class EstoqueViewSet(viewsets.ModelViewSet):
-    serializer_class = EstoqueSerializer
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+class VariacaoEstoqueViewSet(viewsets.ModelViewSet):
+    serializer_class = VariacaoEstoqueSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    ordering_fields = ['id']
-    search_fields = ['produtos__nome_produto', 'tamanho']
 
     def get_queryset(self):
-        user = self.request.user
-        if Logistas.objects.filter(user=user).exists():
-            lojista = Logistas.objects.filter(user=user).first()
-            
-            # Se a requisição vier filtrada por um ID de produto na URL (/api/products/:id/variations)
-            product_id = self.kwargs.get('product_id')
-            if product_id:
-                return Estoque.objects.filter(produtos__lojista=lojista, produtos_id=product_id).order_by('id')
-                
-            return Estoque.objects.filter(produtos__lojista=lojista).order_by('id')
-        raise PermissionDenied("Acesso restrito a lojistas para gerenciamento de estoque.")
+        usuario_atual = self.request.user
+        perfil_lojista = get_object_or_404(Lojista, usuario=usuario_atual)
+        id_produto_url = self.kwargs.get('id_produto')
+        if id_produto_url:
+            return VariacaoEstoque.objects.filter(produto__lojista=perfil_lojista, produto_id=id_produto_url).order_by('id')
+        return VariacaoEstoque.objects.filter(produto__lojista=perfil_lojista).order_by('id')
 
     def perform_create(self, serializer):
-        user = self.request.user
-        lojista = Logistas.objects.filter(user=user).first()
-        
-        # Garante a injeção do produto caso venha pela URL limpa (/products/:id/variations)
-        product_id = self.kwargs.get('product_id')
-        if product_id:
-            produto = get_object_or_404(Produtos, id=product_id, lojista=lojista)
-            serializer.save(produtos=produto)
-        else:
-            serializer.save()
+        perfil_lojista = get_object_or_404(Lojista, usuario=self.request.user)
+        id_produto_url = self.kwargs.get('id_produto')
+        entidade_produto = get_object_or_404(Produto, id=id_produto_url, lojista=perfil_lojista)
+        serializer.save(produto=entidade_produto)
 
-
-class VariaçãoDetalheView(APIView):
+class DetalheVariacaoView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        request_body=EstoqueSerializer,
-        responses={200: openapi.Response('Variação atualizada com sucesso!')}
-    )
     def put(self, request, pk):
-        variacao = get_object_or_404(Estoque, id=pk)
-        
-        if not variacao.produtos.lojista or variacao.produtos.lojista.user != request.user:
+        registro_variacao = get_object_or_404(VariacaoEstoque, id=pk)
+        if not registro_variacao.produto.lojista or registro_variacao.produto.lojista.usuario != request.user:
             return Response({"detail": "Permissão negada."}, status=status.HTTP_403_FORBIDDEN)
-            
-        serializer = EstoqueSerializer(variacao, data=request.data, partial=True)
+        serializer = VariacaoEstoqueSerializer(registro_variacao, data=request.data, partial=True)
         if serializer.is_valid():
-            try:
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except IntegrityError:
-                return Response({"detail": "Essa variação já existe neste produto."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        variacao = get_object_or_404(Estoque, id=pk)
-        
-        if not variacao.produtos.lojista or variacao.produtos.lojista.user != request.user:
+        registro_variacao = get_object_or_404(VariacaoEstoque, id=pk)
+        if not registro_variacao.produto.lojista or registro_variacao.produto.lojista.usuario != request.user:
             return Response({"detail": "Permissão negada."}, status=status.HTTP_403_FORBIDDEN)
-            
-        variacao.delete()
+        registro_variacao.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class MensagemContatoView(APIView):
+    serializer_class = MensagemContatoSerializer
+    permission_classes = []
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            entidade_contato = serializer.save()
+            send_mail(
+                subject=f"[Contato] {entidade_contato.assunto}",
+                message=entidade_contato.mensagem,
+                from_email='naoresponda@lojaeject.com',
+                recipient_list=['suporte@lojaeject.com'],
+                fail_silently=False
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CarrinhoCompraView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _get_carrinho(self, request):
+        perfil_cliente = get_object_or_404(Cliente, usuario=request.user)
+        carrinho, _ = CarrinhoCompra.objects.get_or_create(cliente=perfil_cliente)
+        return carrinho
+
+    def get(self, request):
+        carrinho = self._get_carrinho(request)
+        return Response(CarrinhoCompraSerializer(carrinho).data)
+
+    def delete(self, request):
+        carrinho = self._get_carrinho(request)
+        carrinho.itens.all().delete()
+        return Response({"detail": "Todos os itens foram removidos do carrinho com sucesso."}, status=status.HTTP_204_NO_CONTENT)
+
+class ItemCarrinhoViewSet(viewsets.ModelViewSet):
+    serializer_class = ItemCarrinhoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        perfil_cliente = get_object_or_404(Cliente, usuario=self.request.user)
+        return ItemCarrinho.objects.filter(carrinho__cliente=perfil_cliente)
+
+    def create(self, request, *args, **kwargs):
+        perfil_cliente = get_object_or_404(Cliente, usuario=request.user)
+        carrinho, _ = CarrinhoCompra.objects.get_or_create(cliente=perfil_cliente)
+        
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        
+        variacao = serializer.validated_data['variacao']
+        quantidade = serializer.validated_data['quantidade']
+        
+        item_existente = ItemCarrinho.objects.filter(carrinho=carrinho, variacao=variacao).first()
+        
+        if item_existente:
+            nova_qtd = item_existente.quantidade + quantidade
+            if nova_qtd > variacao.quantidade:
+                raise ValidationError({"quantidade": f"Estoque insuficiente. Desejado: {nova_qtd}, Disponível: {variacao.quantidade}"})
+            
+            # CORREÇÃO APLICADA: Propriedade inválida (.amount) removida
+            item_existente.quantidade = nova_qtd
+            item_existente.save()
+            
+            serializer_retorno = self.get_serializer(item_existente)
+            return Response(serializer_retorno.data, status=status.HTTP_200_OK)
+        
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_create(self, serializer):
+        perfil_cliente = get_object_or_404(Cliente, usuario=self.request.user)
+        carrinho, _ = CarrinhoCompra.objects.get_or_create(cliente=perfil_cliente)
+        serializer.save(carrinho=carrinho)
+
+class PedidoViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    serializer_class = PedidoSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status']
+    ordering_fields = ['criado_em']
+
+    def get_queryset(self):
+        usuario_atual = self.request.user
+        if Lojista.objects.filter(usuario=usuario_atual).exists():
+            perfil_lojista = Lojista.objects.get(usuario=usuario_atual)
+            return Pedido.objects.filter(lojista=perfil_lojista).order_by('criado_em')
+        if Cliente.objects.filter(usuario=usuario_atual).exists():
+            perfil_cliente = Cliente.objects.get(usuario=usuario_atual)
+            return Pedido.objects.filter(cliente=perfil_cliente).order_by('-criado_em')
+        return Pedido.objects.none()
+
+    def perform_update(self, serializer):
+        # UC09: Garante que apenas lojistas atualizam o status
+        if not Lojista.objects.filter(usuario=self.request.user).exists():
+            raise PermissionDenied("Apenas lojistas podem modificar pedidos.")
+        serializer.save()
+
+class CheckoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic()
+    def post(self, request):
+        perfil_cliente = get_object_or_404(Cliente, usuario=request.user)
+        carrinho = get_object_or_404(CarrinhoCompra, cliente=perfil_cliente)
+        
+        if not carrinho.itens.exists():
+            return Response({"detail": "Seu carrinho está vazio."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = CheckoutSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        lotes = {}
+        for item in carrinho.itens.all():
+            variacao = VariacaoEstoque.objects.select_for_update().get(id=item.variacao.id)
+            if variacao.quantidade < item.quantidade:
+                return Response({"detail": f"Estoque insuficiente para {variacao}."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            lojista = variacao.produto.lojista
+            if lojista not in lotes:
+                lotes[lojista] = []
+            lotes[lojista].append((item, variacao))
+
+        pedidos_criados = []
+        for lojista, itens_lista in lotes.items():
+            pedido = Pedido.objects.create(
+                cliente=perfil_cliente,
+                lojista=lojista,
+                status='pendente',
+                endereco_entrega=serializer.validated_data['endereco_entrega'],
+                forma_pagamento=serializer.validated_data['forma_pagamento'],
+                destinatario=serializer.validated_data.get('destinatario') or perfil_cliente.nome_completo
+            )
+            for item_carrinho, var_banco in itens_lista:
+                ItemPedido.objects.create(
+                    pedido=pedido,
+                    variacao=var_banco,
+                    quantidade=item_carrinho.quantidade,
+                    preco_unitario=var_banco.produto.preco
+                )
+                var_banco.quantidade -= item_carrinho.quantidade
+                var_banco.save()
+            pedidos_criados.append(pedido)
+
+        carrinho.itens.all().delete()
+        return Response(PedidoSerializer(pedidos_criados, many=True).data, status=status.HTTP_201_CREATED)
+
+class MetodoPagamentoViewSet(viewsets.ModelViewSet):
+    serializer_class = MetodoPagamentoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        perfil_cliente = get_object_or_404(Cliente, usuario=self.request.user)
+        return MetodoPagamento.objects.filter(cliente=perfil_cliente).order_by('-id')
+
+    def perform_create(self, serializer):
+        perfil_cliente = get_object_or_404(Cliente, usuario=self.request.user)
+        serializer.save(cliente=perfil_cliente)
