@@ -78,9 +78,11 @@ class MetodoPagamentoAdmin(admin.ModelAdmin):
 
 @admin.register(TokenRedefinicaoSenha)
 class TokenRedefinicaoSenhaAdmin(admin.ModelAdmin):
-    list_display = ('email', 'token', 'criado_em', 'utilizado')
+    exclude = ('token',)
+    list_display = ('email', 'criado_em', 'utilizado')
+    readonly_fields = ('email', 'criado_em', 'utilizado')
     list_filter = ('utilizado', 'criado_em')
-    search_fields = ('email', 'token')
+    search_fields = ('email',)
 
 @admin.register(MensagemContato)
 class MensagemContatoAdmin(admin.ModelAdmin):

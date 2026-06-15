@@ -20,11 +20,19 @@ def verificar_cpf_valido(cpf_texto):
             return False
     return True
 
+STATUS_TRANSITIONS = {
+    'pendente': ['pago', 'cancelado'],
+    'pago': ['enviado', 'cancelado'],
+    'enviado': ['entregue'],
+    'entregue': [],
+    'cancelado': []
+}
+
 # Validação estrutural de perfil (UC01 - CPF Único por Perfil)
 def validar_dados_perfil(dados, instancia_id=None, perfil_tipo=None):
     erros = {}
     cpf_informado = dados.get('cpf')
-    
+
     if cpf_informado:
         cpf_limpo = re.sub(r'\D', '', cpf_informado)
         if not verificar_cpf_valido(cpf_limpo):
@@ -204,15 +212,16 @@ class ItemCarrinhoSerializer(serializers.ModelSerializer):
             if quantidade > variacao.quantidade:
                 raise serializers.ValidationError({"quantidade": f"Estoque insuficiente ({variacao.quantidade} disponíveis)."})
             
-            # UC07: Impede mistura de produtos de diferentes lojistas no mesmo carrinho
+            # UC07: Não é responsabilidade do serializer criar o carrinho
             request = self.context.get('request')
             if request and request.user.is_authenticated:
                 perfil_cliente = Cliente.objects.filter(usuario=request.user).first()
                 if perfil_cliente:
-                    carrinho, _ = CarrinhoCompra.objects.get_or_create(cliente=perfil_cliente)
-                    outro_item = carrinho.itens.exclude(id=getattr(self.instance, 'id', None)).first()
-                    if outro_item and outro_item.variacao.produto.lojista != variacao.produto.lojista:
-                        raise serializers.ValidationError({"variacao": "Não é permitido misturar produtos de lojistas diferentes no carrinho."})
+                    carrinho = CarrinhoCompra.objects.filter(cliente=perfil_cliente).first()
+                    if carrinho:
+                        outro_item = carrinho.itens.exclude(id=getattr(self.instance, 'id', None)).first()
+                        if outro_item and outro_item.variacao.produto.lojista != variacao.produto.lojista:
+                            raise serializers.ValidationError({"variacao": "Não é permitido misturar produtos de lojistas diferentes no carrinho."})
                         
         return dados
 
@@ -256,13 +265,7 @@ class PedidoSerializer(serializers.ModelSerializer):
         # UC09: Transições válidas de status de pedido
         if self.instance:
             status_atual = self.instance.status
-            transicoes_validas = {
-                'pendente': ['pago', 'cancelado'],
-                'pago': ['enviado'],
-                'enviado': ['entregue'],
-                'entregue': [],
-                'cancelado': []
-            }
+            transicoes_validas = STATUS_TRANSITIONS
             if valor != status_atual and valor not in transicoes_validas.get(status_atual, []):
                 raise serializers.ValidationError(f"Transição de status inválida de '{status_atual}' para '{valor}'.")
         return valor

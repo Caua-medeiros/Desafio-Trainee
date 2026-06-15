@@ -1,3 +1,4 @@
+import os
 import random
 from django.shortcuts import get_object_or_404
 from django.db import transaction
@@ -51,7 +52,22 @@ class SolicitacaoRecuperacaoSenhaView(APIView):
             if User.objects.filter(email=email_alvo).exists():
                 codigo_verificacao = f"{random.randint(100000, 999999)}"
                 TokenRedefinicaoSenha.objects.create(email=email_alvo, token=codigo_verificacao)
-                print(f"\n[EMAIL CONSOLE] Token enviado para {email_alvo}: {codigo_verificacao}\n")
+
+                protocolo = 'https' if request.is_secure() else 'http'
+                host = request.get_host()
+                link_recuperacao = f"{protocolo}://{host}/auth/reset-password?email={email_alvo}&token={codigo_verificacao}"
+
+                send_mail(
+                    subject="Recuperação de Senha - Loja EJECT",
+                    message=(
+                        "Você solicitou a redefinição de senha.\n\n"
+                        f"Acesse o link abaixo para continuar:\n{link_recuperacao}\n\n"
+                        "Se você não solicitou, ignore esta mensagem."
+                    ),
+                    from_email=os.getenv('EMAIL_USER', 'suporte@lojaeject.com'),
+                    recipient_list=[email_alvo],
+                    fail_silently=False
+                )
             # UC02: Mantém blindagem de segurança para não vazar a existência do usuário
             return Response({"detail": "Se o e-mail informado constar em nossa base, um link de recuperação foi enviado."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

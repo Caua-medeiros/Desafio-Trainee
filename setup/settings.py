@@ -1,9 +1,12 @@
+import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv()
 
-SECRET_KEY = 'django-insecure--#mdqtypge5jf!hre=p3^6)bstppi+f3oj@kkeop8)+h7!42mt'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure--#mdqtypge5jf!hre=p3^6)bstppi+f3oj@kkeop8)+h7!42mt')
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
@@ -85,7 +88,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/minute',
-        'user': '1000/minute'
+        'user': '600/minute'
     }
 }
 

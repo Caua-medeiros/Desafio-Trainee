@@ -29,7 +29,7 @@ O ecossistema do backend foi centralizado em uma arquitetura monolítica simplif
 ### 🔐 Gestão de Identidades e Acesso (`users`)
 O sistema estende o modelo nativo de autenticação do Django para segregar o escopo de atuação na API:
 * **User (Base):** Entidade abstrata/concreta que centraliza as credenciais de login e a flag identificadora do tipo de conta.
-* **Cliente:** Modelo que estende o utilizador comum, armazenando metadados fiscais e logísticos essenciais para a entrega (CPF, CEP, Endereço de Entrega, Telefone, Data de Nascimento).
+* **Cliente:** Modelo que estende o usuário comum, armazenando metadados fiscais e logísticos essenciais para a entrega (CPF, CEP, Endereço de Entrega, Telefone, Data de Nascimento).
 * **Lojista:** Perfil com privilégios administrativos no backend, autorizado a gerir o catálogo e o andamento dos pedidos.
 
 ### 🛍️ Inventário e Catálogo de Produtos
@@ -48,7 +48,7 @@ O sistema estende o modelo nativo de autenticação do Django para segregar o es
 
 | Funcionalidade Backend | Endpoint da API | Método HTTP | Payload Esperado (JSON) |
 | :--- | :--- | :--- | :--- |
-| **Registo de Utilizadores** | `/auth/register` | `POST` | `username`, `password`, `email`, `tipo_usuario` |
+| **Registo de Usuario** | `/auth/register` | `POST` | `email`, `senha`, `nome_completo`, `tipo_usuario`, `data_nascimento`, `telefone`, `cpf`, `cep`, `endereco` |
 | **Autenticação (Obter JWT)** | `/auth/login` | `POST` | `username`, `password` -> Retorna `access` e `refresh` |
 | **Refresh de Token** | `/auth/token/refresh` | `POST` | `refresh` -> Emite um novo token de acesso `access` |
 
@@ -84,7 +84,7 @@ O campo `categoria` no modelo de `Produto` utiliza validação em nível de ORM 
 ### 🛡️ Throttling (Camada de Proteção contra Sobrecarga)
 Configurado diretamente no dicionário `REST_FRAMEWORK` para mitigar ataques de negação de serviço (DDoS) e varreduras automatizadas:
 * **AnonRateThrottle (Utilizadores Anónimos):** Teto máximo de **100 requisições por minuto**.
-* **UserRateThrottle (Utilizadores Autenticados):** Teto máximo de **1.000 requisições por minuto**.
+* **UserRateThrottle (Utilizadores Autenticados):** Teto máximo de **600 requisições por minuto**.
 
 ---
 
@@ -99,10 +99,42 @@ O controle de acessos do sistema baseia-se no modelo RBAC (Role-Based Access Con
 
 ## 🛠️ Instruções para Instalação e Execução Local
 
-1. **Clonar o Repositório do Projeto:**
+1. **Clonar o repositório do projeto:**
    ```bash
-   git clone <url-do-repositorio-aqui>
-   cd DESAFIO-TRAINEE
+   git clone https://github.com/seu-usuario/seu-repositorio.git
+   cd "Desafio trainee"
+   ```
+
+2. **Criar e ativar o ambiente virtual:**
+   ```bash
+   python -m venv venv
+   venv\\Scripts\\activate
+   ```
+
+3. **Instalar dependências:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configurar variáveis de ambiente:**
+   - Crie um arquivo `.env` na raiz do projeto com as chaves:
+     ```env
+     DJANGO_SECRET_KEY="sua_chave_secreta_aqui"
+     EMAIL_USER="seu-email@dominio.com"
+     EMAIL_PASSWORD="sua_senha_de_app"
+     ```
+   - Para desenvolvimento, o backend de e-mail está configurado para exibir mensagens no console.
+
+5. **Executar migrações:**
+   ```bash
+   python manage.py makemigrations
+   python manage.py migrate
+   ```
+
+6. **Executar o servidor:**
+   ```bash
+   python manage.py runserver
+   ```
 
 
 
