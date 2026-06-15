@@ -101,7 +101,7 @@ O controle de acessos do sistema baseia-se no modelo RBAC (Role-Based Access Con
 
 1. **Clonar o repositório do projeto:**
    ```bash
-   git clone https://github.com/seu-usuario/seu-repositorio.git
+   git clone  https://github.com/Caua-medeiros/Desafio-Trainee.git
    cd "Desafio trainee"
    ```
 
@@ -116,22 +116,13 @@ O controle de acessos do sistema baseia-se no modelo RBAC (Role-Based Access Con
    pip install -r requirements.txt
    ```
 
-4. **Configurar variáveis de ambiente:**
-   - Crie um arquivo `.env` na raiz do projeto com as chaves:
-     ```env
-     DJANGO_SECRET_KEY="sua_chave_secreta_aqui"
-     EMAIL_USER="seu-email@dominio.com"
-     EMAIL_PASSWORD="sua_senha_de_app"
-     ```
-   - Para desenvolvimento, o backend de e-mail está configurado para exibir mensagens no console.
-
-5. **Executar migrações:**
+4. **Executar migrações:**
    ```bash
    python manage.py makemigrations
    python manage.py migrate
    ```
 
-6. **Executar o servidor:**
+5. **Executar o servidor:**
    ```bash
    python manage.py runserver
    ```
