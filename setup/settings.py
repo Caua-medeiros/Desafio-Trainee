@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure--#mdqtypge5jf!hre=p3^6)bstppi+f3oj@kkeop8)+h7!42mt')
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.getenv('SECRET_KEY', 'xc&cj(*qcnm_m!d&(o76!%)x!$xb)@her7ghgx8svyl4we&ohr')
+DEBUG = False
+ALLOWED_HOSTS = ['127.0.0.1:8000', 'localhost', 'desafiotraineedeploy.pythonanywhere.com']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -112,3 +112,14 @@ SWAGGER_SETTINGS = {
     },
     'USE_SESSION_AUTH': False,
 }
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    
+    SESSION_COOKIE_SECURE = True
+    
+    CSRF_COOKIE_SECURE = True
+    
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
