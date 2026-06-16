@@ -7,6 +7,7 @@ A **New Style API** é uma solução de backend RESTful desenvolvida com Django 
 * **URL Base da API:** `http://127.0.0.1:8000`
 * **Documentação Interativa (Swagger/OpenAPI):** `http://127.0.0.1:8000/swagger/`
 * **Documentação Alternativa (Redoc):** `http://127.0.0.1:8000/redoc/`
+* **Link da API:** `DesafioTraineedeploy.pythonanywhere.com`
 
 ## 🧰 Stack Tecnológica e Dependências Core
 
